@@ -20,13 +20,3 @@
 # add thems
 git clone https://github.com/xiaoqingfengATGH/luci-theme-infinityfreedom.git package/luci-theme-infinityfreedom
 
-# add istore
-git clone https://github.com/linkease/istore-ui.git package/istore-ui
-git clone https://github.com/linkease/istore.git package/istore
-
-# netspeedtest
-git clone https://github.com/sirpdboy/netspeedtest.git package/netspeedtest
-
-# Add a feed source
-echo 'src-git kenzo https://github.com/kenzok8/openwrt-packages' >>feeds.conf.default
-echo 'src-git small https://github.com/kenzok8/small' >>feeds.conf.default #passwall
