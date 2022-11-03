@@ -78,9 +78,12 @@ jobs:
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        [ -e patches ] && mv patches openwrt/patches
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+        curl -s https://downloads.openwrt.org/releases/22.03-SNAPSHOT/targets/ramips/mt7621/packages/Packages | grep "Depends: kernel (=.*)$" | head -n 1 | sed -e 's/.*-\(.*\))/\1/' > vermagic
+        find "patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d './' -p1 -E --forward --no-backup-if-mismatch"
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
