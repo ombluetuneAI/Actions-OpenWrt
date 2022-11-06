@@ -21,16 +21,18 @@ on:
 
 env:
   REPO_URL: https://github.com/ombluetuneAI/openwrt
-  REPO_BRANCH: har-20s2u1
+  REPO_BRANCH: har-20s2u1-22.03
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config
+  CONFIG_FILE: har-20s2u1.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_COWTRANSFER: true
   UPLOAD_WETRANSFER: false
+  UPLOAD_KSTORE: true
   UPLOAD_RELEASE: false
+  KSTORE_TOKEN: ${{ secrets.KSTORE_TOKEN }}
   TZ: Asia/Shanghai
 
 jobs:
@@ -75,9 +77,13 @@ jobs:
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        [ -e patches ] && mv patches openwrt/patches
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+        curl -s https://downloads.openwrt.org/releases/22.03-SNAPSHOT/targets/ramips/mt7621/packages/Packages | grep "Depends: kernel (=.*)$" | head -n 1 | sed -e 's/.*-\(.*\))/\1/' > vermagic
+        find "patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d './' -p1 -E --forward --no-backup-if-mismatch"
+
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
       if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
@@ -145,6 +151,29 @@ jobs:
         ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
         echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
         echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
+    
+    - name: Upload firmware to KStore
+      id: KStore
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_KSTORE == 'true' && !cancelled()
+      run: |
+
+        zip -r firmware.zip ${FIRMWARE}
+        cp ${FIRMWARE}/*sysupgrade.bin update.bin
+
+        # 查找firmware目录id
+        firmware_dir_id=$(curl -X POST -d "path=openwrt/har-20s2u1/"  https://api.kstore.space/api/v1/file/search/path?access_token=${{ secrets.KSTORE_TOKEN }} | jq ".data.id")
+        echo $firmware_dir_id
+
+        #上传zip文件，开启直链
+        upload_file_id=$(curl https://upload.kstore.space/upload/$firmware_dir_id?access_token=${{ secrets.KSTORE_TOKEN }} -F "file=@./firmware.zip" | jq ".data.id")
+        echo $upload_file_id
+        curl -X POST -d "fileId=$upload_file_id&isDirect=1" https://api.kstore.space/api/v1/file/direct?access_token=${{ secrets.KSTORE_TOKEN }} | jq "."
+
+        #上传bin文件，开启直链
+        upload_file_id=$(curl https://upload.kstore.space/upload/$firmware_dir_id?access_token=${{ secrets.KSTORE_TOKEN }} -F "file=@./update.bin" | jq ".data.id")
+        echo $upload_file_id
+        curl -X POST -d "fileId=$upload_file_id&isDirect=1" https://api.kstore.space/api/v1/file/direct?access_token=${{ secrets.KSTORE_TOKEN }} | jq "."
+    
     - name: Generate release tag
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
