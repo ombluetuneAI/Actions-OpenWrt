@@ -207,8 +207,12 @@ def album_get_all_items(url):
     return items
 
 def album_cal_matching_rate(items):
-    rate = 1
-    local = read_csv(favorites_path)
+    # 本地id lists
+    local_all = read_csv(favorites_path)
+    local = []
+    for a in local_all:
+        local.append(a[0])
+
     total_len = len(items)
     valid_len = 0
     for item in items:
