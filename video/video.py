@@ -38,6 +38,7 @@ video_info_path = "video_info.csv"
 exist_id_path = "exist_id.csv"
 related_album_path = "album.csv"
 related_album_full_path = "album_full.csv"
+favorites_path = "favorites.csv"
 
 global headers
 headers = {
@@ -207,6 +208,13 @@ def album_get_all_items(url):
 
 def album_cal_matching_rate(items):
     rate = 1
+    local = read_csv(favorites_path)
+    total_len = len(items)
+    valid_len = 0
+    for item in items:
+        if item[0] in local:
+            valid_len = valid_len + 1
+    rate = round(valid_len * 100 / total_len)
     return rate
 
 
@@ -238,6 +246,7 @@ def get_video_page():
 
         # 分析该播放列表匹配度（根据favarite匹配）
         rate = album_cal_matching_rate(items)
+        logging.info(playlist_url + " rate: " + str(rate))
 
         # 保存播放列表（去重）/丢掉播放列表
         if (rate > 0):
