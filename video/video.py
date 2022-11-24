@@ -128,7 +128,10 @@ def parse_video_links(data):
         video_json = str(soup.find("script", type="application/ld+json").contents[0])
         video_json = video_json.replace("\n", "").replace("\r", "")
         video_json = json.loads(video_json)
-        return video_json
+        if ("@type" in video_json and video_json["@type"] == "VideoObject"):
+            return video_json
+        else:
+            return None
     except:
         logging.info(data)
         return None
